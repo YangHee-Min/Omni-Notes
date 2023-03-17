@@ -26,7 +26,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.lazygeniouz.dfc.file.DocumentFileCompat;
 import com.pixplicity.easyprefs.library.Prefs;
 import it.feio.android.omninotes.BaseAndroidTestCase;
-import it.feio.android.omninotes.OmniNotes;
 import it.feio.android.omninotes.exceptions.BackupException;
 import it.feio.android.omninotes.exceptions.checked.BackupAttachmentException;
 import it.feio.android.omninotes.models.Attachment;
@@ -70,6 +69,15 @@ public class BackupHelperTest extends BaseAndroidTestCase {
   @Test
   public void checkUtilityClassWellDefined() throws Exception {
     assertUtilityClassWellDefined(BackupHelper.class);
+  }
+
+  @Test
+  public void getBackupNoteFile() {
+    Note note = createTestNote("Note", "content", 0);
+    DocumentFileCompat backupFile = BackupHelper.getBackupNoteFile(backupDir, note);
+
+    assertTrue(backupFile.exists());
+    assertTrue(StringUtils.isNotEmpty(backupFile.getExtension()));
   }
 
   @Test
@@ -188,19 +196,6 @@ public class BackupHelperTest extends BaseAndroidTestCase {
     LogDelegate.i("checking " + attachment.getUri().getPath());
 
     assertTrue(new File(attachment.getUri().getPath()).exists());
-  }
-
-  @Test(expected = BackupException.class)
-  public void importSettings_notFound() throws IOException {
-    BackupHelper.importSettings(backupDir);
-  }
-
-  @Test
-  public void importSettings() throws IOException {
-    backupDir.createFile("",
-        StorageHelper.getSharedPreferencesFile(OmniNotes.getAppContext()).getName());
-
-    BackupHelper.importSettings(backupDir);
   }
 
   private Attachment createTestAttachmentBackup() {
