@@ -182,6 +182,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import org.apache.commons.collections4.CollectionUtils;
 import rx.Observable;
@@ -1372,48 +1373,108 @@ public class DetailFragment extends BaseFragment implements OnReminderPickedList
   @Override
   public void onActivityResult(int requestCode, int resultCode, Intent intent) {
     // Fetch uri from activities, store into adapter and refresh adapter
-    Attachment attachment;
-    if (resultCode == Activity.RESULT_OK) {
-      switch (requestCode) {
-        case TAKE_PHOTO:
-          attachment = new Attachment(attachmentUri, MIME_TYPE_IMAGE);
-          addAttachment(attachment);
-          mAttachmentAdapter.notifyDataSetChanged();
-          mGridView.autoresize();
-          break;
-        case TAKE_VIDEO:
-          attachment = new Attachment(attachmentUri, MIME_TYPE_VIDEO);
-          addAttachment(attachment);
-          mAttachmentAdapter.notifyDataSetChanged();
-          mGridView.autoresize();
-          break;
-        case FILES:
-          onActivityResultManageReceivedFiles(intent);
-          break;
-        case SET_PASSWORD:
-          noteTmp.setPasswordChecked(true);
-          lockUnlock();
-          break;
-        case SKETCH:
-          attachment = new Attachment(attachmentUri, MIME_TYPE_SKETCH);
-          addAttachment(attachment);
-          mAttachmentAdapter.notifyDataSetChanged();
-          mGridView.autoresize();
-          break;
-        case CATEGORY:
-          mainActivity.showMessage(R.string.category_saved, ONStyle.CONFIRM);
-          Category category = intent.getParcelableExtra("category");
-          noteTmp.setCategory(category);
-          setTagMarkerColor(category);
-          break;
-        case DETAIL:
-          mainActivity.showMessage(R.string.note_updated, ONStyle.CONFIRM);
-          break;
-        default:
-          LogDelegate.e("Wrong element choosen: " + requestCode);
-      }
+    HashMap<Integer, ActivityResultStrategy> activityResultStrategyMap = SetActivityResultStrategyHashMap();
+
+    if(activityResultStrategyMap.containsKey(requestCode)) {
+      activityResultStrategyMap.get(requestCode).HandleResult(intent);
+    }
+    else{
+      LogDelegate.e("Wrong element choosen: " + requestCode);
     }
   }
+
+  private HashMap<Integer, ActivityResultStrategy> SetActivityResultStrategyHashMap() {
+    HashMap<Integer, ActivityResultStrategy> activityResultStrategyMap = new HashMap<>();
+    activityResultStrategyMap.put(TAKE_PHOTO, new TakePhotoStrategy());
+    activityResultStrategyMap.put(TAKE_VIDEO, new TakeVideoStrategy());
+    activityResultStrategyMap.put(FILES, new SetPasswordStrategy());
+    activityResultStrategyMap.put(SET_PASSWORD, new TakePhotoStrategy());
+    activityResultStrategyMap.put(SKETCH, new SketchStrategy());
+    activityResultStrategyMap.put(CATEGORY, new CategoryStrategy());
+    activityResultStrategyMap.put(DETAIL, new DetailStrategy());
+    return activityResultStrategyMap;
+  }
+  private abstract class ActivityResultStrategy
+  {
+    abstract void HandleResult(Intent intent);
+  }
+
+  private class TakePhotoStrategy extends ActivityResultStrategy
+  {
+    @Override
+    public void HandleResult(Intent intent)
+    {
+      Attachment attachment = new Attachment(attachmentUri, MIME_TYPE_IMAGE);
+      addAttachment(attachment);
+      mAttachmentAdapter.notifyDataSetChanged();
+      mGridView.autoresize();
+    }
+  }
+
+  private class TakeVideoStrategy extends ActivityResultStrategy
+  {
+    @Override
+    public void HandleResult(Intent intent)
+    {
+      Attachment attachment = new Attachment(attachmentUri, MIME_TYPE_VIDEO);
+      addAttachment(attachment);
+      mAttachmentAdapter.notifyDataSetChanged();
+      mGridView.autoresize();
+    }
+  }
+
+  private class FilesStrategy extends ActivityResultStrategy
+  {
+    @Override
+    public void HandleResult(Intent intent)
+    {
+      onActivityResultManageReceivedFiles(intent);
+    }
+  }
+
+  private class SetPasswordStrategy extends ActivityResultStrategy
+  {
+    @Override
+    public void HandleResult(Intent intent)
+    {
+      noteTmp.setPasswordChecked(true);
+      lockUnlock();
+    }
+  }
+
+  private class SketchStrategy extends ActivityResultStrategy
+  {
+    @Override
+    public void HandleResult(Intent intent)
+    {
+      Attachment attachment = new Attachment(attachmentUri, MIME_TYPE_SKETCH);
+      addAttachment(attachment);
+      mAttachmentAdapter.notifyDataSetChanged();
+      mGridView.autoresize();
+    }
+  }
+
+  private class CategoryStrategy extends ActivityResultStrategy
+  {
+    @Override
+    public void HandleResult(Intent intent)
+    {
+      mainActivity.showMessage(R.string.category_saved, ONStyle.CONFIRM);
+      Category category = intent.getParcelableExtra("category");
+      noteTmp.setCategory(category);
+      setTagMarkerColor(category);
+    }
+  }
+
+  private class DetailStrategy extends ActivityResultStrategy
+  {
+    @Override
+    public void HandleResult(Intent intent)
+    {
+      mainActivity.showMessage(R.string.note_updated, ONStyle.CONFIRM);
+    }
+  }
+
 
   private void onActivityResultManageReceivedFiles(Intent intent) {
     List<Uri> uris = new ArrayList<>();
