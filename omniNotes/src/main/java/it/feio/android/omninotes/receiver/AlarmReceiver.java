@@ -69,6 +69,7 @@ public class AlarmReceiver extends BroadcastReceiver {
     DbHelper.getInstance().updateNote(note, false);
   }
 
+  // TODO: Refactor createNotification
   private void createNotification(Context mContext, Note note) {
     PendingIntent piSnooze = IntentHelper
         .getNotePendingIntent(mContext, SnoozeActivity.class, ACTION_SNOOZE, note);
@@ -86,6 +87,8 @@ public class AlarmReceiver extends BroadcastReceiver {
         R.drawable.ic_stat_notification,
         title, notifyIntent).setLedActive().setMessage(text);
 
+    // Extract into method: SetNotificationIcon
+    // Extract begin
     List<Attachment> attachments = note.getAttachmentsList();
     if (!attachments.isEmpty() && !attachments.get(0).getMime_type().equals(MIME_TYPE_FILES)) {
       Bitmap notificationIcon = BitmapHelper
@@ -93,9 +96,12 @@ public class AlarmReceiver extends BroadcastReceiver {
               128);
       notificationsHelper.setLargeIcon(notificationIcon);
     }
+    // Extract end
 
     String snoozeDelay = Prefs.getString("settings_notification_snooze_delay", "10");
 
+    // Extract this and put it into another method
+    // Extract begin
     notificationsHelper.getBuilder()
         .addAction(R.drawable.ic_material_reminder_time_light,
             TextHelper.capitalize(mContext.getString(R.string.snooze)) + ": " + snoozeDelay,
@@ -106,7 +112,7 @@ public class AlarmReceiver extends BroadcastReceiver {
 
     setRingtone(notificationsHelper);
     setVibrate(notificationsHelper);
-
+    // Extract end
     notificationsHelper.show(note.get_id());
   }
 

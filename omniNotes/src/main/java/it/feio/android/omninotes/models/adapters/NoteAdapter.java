@@ -81,82 +81,12 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteViewHolder> {
   }
 
 
-  private void initThumbnail(Note note, NoteViewHolder holder) {
 
-    if (expandedView && holder.attachmentThumbnail != null) {
-      // If note is locked or without attachments nothing is shown
-      if ((note.isLocked() && !Prefs.getBoolean("settings_password_access", false))
-          || note.getAttachmentsList().isEmpty()) {
-        holder.attachmentThumbnail.setVisibility(View.GONE);
-      } else {
-        holder.attachmentThumbnail.setVisibility(View.VISIBLE);
-        Attachment mAttachment = note.getAttachmentsList().get(0);
-        Uri thumbnailUri = BitmapHelper.getThumbnailUri(mActivity, mAttachment);
-
-        Glide.with(mActivity)
-            .load(thumbnailUri)
-            .apply(new RequestOptions().centerCrop())
-            .transition(withCrossFade())
-            .into(holder.attachmentThumbnail);
-      }
-    }
-  }
 
 
   public List<Note> getNotes() {
     return notes;
   }
-
-
-  private void initDates(Note note, NoteViewHolder holder) {
-    String dateText = TextHelper.getDateText(mActivity, note, navigation);
-    holder.date.setText(dateText);
-  }
-
-
-  private void initIcons(Note note, NoteViewHolder holder) {
-    // Evaluates the archived state...
-    holder.archiveIcon.setVisibility(note.isArchived() ? View.VISIBLE : View.GONE);
-    // ...the location
-    holder.locationIcon
-        .setVisibility(note.getLongitude() != null && note.getLongitude() != 0 ? View.VISIBLE :
-            View.GONE);
-
-    // ...the presence of an alarm
-    holder.alarmIcon.setVisibility(note.getAlarm() != null ? View.VISIBLE : View.GONE);
-    // ...the locked with password state
-    holder.lockedIcon.setVisibility(note.isLocked() ? View.VISIBLE : View.GONE);
-    // ...the attachment icon for contracted view
-    if (!expandedView) {
-      holder.attachmentIcon
-          .setVisibility(!note.getAttachmentsList().isEmpty() ? View.VISIBLE : View.GONE);
-    }
-  }
-
-
-  private void initText(Note note, NoteViewHolder holder) {
-    try {
-      if (note.isChecklist()) {
-        TextWorkerTask task = new TextWorkerTask(mActivity, holder.title, holder.content,
-            expandedView);
-        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, note);
-      } else {
-        Spanned[] titleAndContent = TextHelper.parseTitleAndContent(mActivity, note);
-        holder.title.setText(titleAndContent[0]);
-        holder.content.setText(titleAndContent[1]);
-        holder.title.setText(titleAndContent[0]);
-        if (titleAndContent[1].length() > 0) {
-          holder.content.setText(titleAndContent[1]);
-          holder.content.setVisibility(View.VISIBLE);
-        } else {
-          holder.content.setVisibility(View.INVISIBLE);
-        }
-      }
-    } catch (RejectedExecutionException e) {
-      LogDelegate.w("Oversized tasks pool to load texts!", e);
-    }
-  }
-
 
   /**
    * Saves the position of the closest note to align list scrolling with it on start
@@ -215,46 +145,7 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteViewHolder> {
     final int paddingRight = v.getPaddingRight();
     final int paddingTop = v.getPaddingTop();
     v.setPadding(paddingLeft, paddingTop, paddingRight, paddingBottom);
-    colorNote(note, v, holder);
-  }
-
-
-  @SuppressWarnings("unused")
-  private void colorNote(Note note, View v) {
-    colorNote(note, v, null);
-  }
-
-
-  /**
-   * Color of category marker if note is categorized a function is active in preferences
-   */
-  private void colorNote(Note note, View v, NoteViewHolder holder) {
-
-    String colorsPref = Prefs.getString("settings_colors_app", PREF_COLORS_APP_DEFAULT);
-
-    // Checking preference
-    if (!colorsPref.equals("disabled")) {
-
-      // Resetting transparent color to the view
-      v.setBackgroundColor(Color.parseColor("#00000000"));
-
-      // If category is set the color will be applied on the appropriate target
-      if (note.getCategory() != null && note.getCategory().getColor() != null) {
-        if (colorsPref.equals("complete") || colorsPref.equals("list")) {
-          v.setBackgroundColor(Integer.parseInt(note.getCategory().getColor()));
-        } else {
-          if (holder != null) {
-            holder.categoryMarker
-                .setBackgroundColor(Integer.parseInt(note.getCategory().getColor()));
-          } else {
-            v.findViewById(R.id.category_marker)
-                .setBackgroundColor(Integer.parseInt(note.getCategory().getColor()));
-          }
-        }
-      } else {
-        v.findViewById(R.id.category_marker).setBackgroundColor(0);
-      }
-    }
+    NoteColorer.colorNote(note, v, holder);
   }
 
   public void replace(@NonNull Note note, int index) {
@@ -315,10 +206,10 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteViewHolder> {
   @Override
   public void onBindViewHolder(@NonNull NoteViewHolder holder, int position) {
     Note note = notes.get(position);
-    initText(note, holder);
-    initIcons(note, holder);
-    initDates(note, holder);
-    initThumbnail(note, holder);
+    NotesSetter.initText(note, holder, mActivity, expandedView);
+    NotesSetter.initIcons(note, holder, expandedView);
+    NotesSetter.initDates(note, holder, mActivity, navigation);
+    NotesSetter.initThumbnail(note, holder, expandedView, mActivity);
     manageSelectionColor(position, note, holder);
   }
 
