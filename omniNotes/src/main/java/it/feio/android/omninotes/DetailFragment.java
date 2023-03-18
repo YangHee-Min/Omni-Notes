@@ -64,7 +64,6 @@ import static java.lang.Long.parseLong;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -455,39 +454,48 @@ public class DetailFragment extends BaseFragment implements OnReminderPickedList
     }
   }
 
-  private void handleIntents() {
-    Intent i = mainActivity.getIntent();
-
-    if (IntentChecker.checkAction(i, ACTION_MERGE)) {
-      noteOriginal = new Note();
-      note = new Note(noteOriginal);
-      noteTmp = getArguments().getParcelable(INTENT_NOTE);
-      if (i.getStringArrayListExtra("merged_notes") != null) {
-        mergedNotesIds = i.getStringArrayListExtra("merged_notes");
-      }
-    }
-
-    // Action called from home shortcut
-    if (IntentChecker.checkAction(i, ACTION_SHORTCUT, ACTION_NOTIFICATION_CLICK)) {
-      afterSavedReturnsToList = false;
-      noteOriginal = DbHelper.getInstance().getNote(i.getLongExtra(INTENT_KEY, 0));
-      // Checks if the note pointed from the shortcut has been deleted
-      try {
+  private class DetailFragmentHandler {
+    private void handleNotes(Intent i) {
+      if (IntentChecker.checkAction(i, ACTION_MERGE)) {
+        noteOriginal = new Note();
         note = new Note(noteOriginal);
-        noteTmp = new Note(noteOriginal);
-      } catch (NullPointerException e) {
-        mainActivity.showToast(getText(R.string.shortcut_note_deleted), Toast.LENGTH_LONG);
-        mainActivity.finish();
+        noteTmp = getArguments().getParcelable(INTENT_NOTE);
+        if (i.getStringArrayListExtra("merged_notes") != null) {
+          mergedNotesIds = i.getStringArrayListExtra("merged_notes");
+        }
       }
     }
 
-    // Check if is launched from a widget
-    if (IntentChecker.checkAction(i, ACTION_WIDGET, ACTION_WIDGET_TAKE_PHOTO)) {
+    private void handleHomeShortcut(Intent i) {
+      if (IntentChecker.checkAction(i, ACTION_SHORTCUT, ACTION_NOTIFICATION_CLICK)) {
 
-      afterSavedReturnsToList = false;
-      showKeyboard = true;
+        afterSavedReturnsToList = false;
+        noteOriginal = DbHelper.getInstance().getNote(i.getLongExtra(INTENT_KEY, 0));
+        // Checks if the note pointed from the shortcut has been deleted
+        try {
+          note = new Note(noteOriginal);
+          noteTmp = new Note(noteOriginal);
+        } catch (NullPointerException e) {
+          mainActivity.showToast(getText(R.string.shortcut_note_deleted), Toast.LENGTH_LONG);
+          mainActivity.finish();
+        }
+      }
+    }
 
-      //  with tags to set tag
+    private void handleTags(Intent i) {
+      // Check if is launched from a widget
+      if (IntentChecker.checkAction(i, ACTION_WIDGET, ACTION_WIDGET_TAKE_PHOTO)) {
+        afterSavedReturnsToList = false;
+        showKeyboard = true;
+
+        //  with tags to set tag
+        handleExtraTags(i);
+        handlePhoto(i);
+      }
+
+    }
+
+    private void handleExtraTags(Intent i){
       if (i.hasExtra(INTENT_WIDGET)) {
         String widgetId = i.getExtras().get(INTENT_WIDGET).toString();
         String sqlCondition = Prefs.getString(PREF_WIDGET_PREFIX + widgetId, "");
@@ -503,49 +511,66 @@ public class DetailFragment extends BaseFragment implements OnReminderPickedList
           }
         }
       }
-
-      // Sub-action is to take a photo
+    }
+    private void handlePhoto(Intent i) {
       if (IntentChecker.checkAction(i, ACTION_WIDGET_TAKE_PHOTO)) {
         takePhoto();
       }
     }
 
+    private void handleThirdPartyApps(Intent i){
+      // Handles third party apps requests of sharing
+      if (IntentChecker
+              .checkAction(i, Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE, INTENT_GOOGLE_NOW)
+              && i.getType() != null) {
+        afterSavedReturnsToList = false;
+
+        if (noteTmp == null) {
+          noteTmp = new Note();
+        }
+
+        // Text title
+        String title = i.getStringExtra(Intent.EXTRA_SUBJECT);
+        if (title != null) {
+          noteTmp.setTitle(title);
+        }
+
+        // Text content
+        String content = i.getStringExtra(Intent.EXTRA_TEXT);
+        if (content != null) {
+          noteTmp.setContent(content);
+        }
+
+        importAttachments(i);
+      }
+    }
+
+    private void handleKeyboard(Intent i) {
+      if (IntentChecker
+              .checkAction(i, Intent.ACTION_MAIN, ACTION_WIDGET_SHOW_LIST, ACTION_SHORTCUT_WIDGET,
+                      ACTION_WIDGET)) {
+        showKeyboard = true;
+      }
+    }
+  }
+
+  private void handleIntents() {
+    Intent i = mainActivity.getIntent();
+    DetailFragmentHandler detailFragmentHandler = new DetailFragmentHandler();
+
+    detailFragmentHandler.handleNotes(i);
+
+    detailFragmentHandler.handleHomeShortcut(i);
+
+    detailFragmentHandler.handleTags(i);
+
     if (IntentChecker.checkAction(i, ACTION_FAB_TAKE_PHOTO)) {
       takePhoto();
     }
 
-    // Handles third party apps requests of sharing
-    if (IntentChecker
-        .checkAction(i, Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE, INTENT_GOOGLE_NOW)
-        && i.getType() != null) {
+    detailFragmentHandler.handleThirdPartyApps(i);
 
-      afterSavedReturnsToList = false;
-
-      if (noteTmp == null) {
-        noteTmp = new Note();
-      }
-
-      // Text title
-      String title = i.getStringExtra(Intent.EXTRA_SUBJECT);
-      if (title != null) {
-        noteTmp.setTitle(title);
-      }
-
-      // Text content
-      String content = i.getStringExtra(Intent.EXTRA_TEXT);
-      if (content != null) {
-        noteTmp.setContent(content);
-      }
-
-      importAttachments(i);
-
-    }
-
-    if (IntentChecker
-        .checkAction(i, Intent.ACTION_MAIN, ACTION_WIDGET_SHOW_LIST, ACTION_SHORTCUT_WIDGET,
-            ACTION_WIDGET)) {
-      showKeyboard = true;
-    }
+    detailFragmentHandler.handleKeyboard(i);
 
     i.setAction(null);
   }
