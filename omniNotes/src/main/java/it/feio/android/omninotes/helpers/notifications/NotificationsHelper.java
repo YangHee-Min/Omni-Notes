@@ -86,6 +86,17 @@ public class NotificationsHelper {
     }
   }
 
+  private class NotificationContent {
+    NotificationChannels.NotificationChannelNames _channelName;
+    int _smallIcon;
+    String _title;
+    public NotificationContent(int smallIcon, String title, NotificationChannels.NotificationChannelNames channelName) {
+      _title = title;
+      _smallIcon = smallIcon;
+      _channelName = channelName;
+    }
+  }
+
   @TargetApi(Build.VERSION_CODES.O)
   public void updateNotificationChannelsSound() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -97,35 +108,40 @@ public class NotificationsHelper {
   }
 
   public NotificationsHelper createStandardNotification(
-      @NonNull NotificationChannels.NotificationChannelNames channelName, int
-      smallIcon, String title, PendingIntent notifyIntent) {
-    return createNotification(channelName, smallIcon, title, notifyIntent, false);
-  }
-
-  public NotificationsHelper createOngoingNotification(
-      @NonNull NotificationChannels.NotificationChannelNames channelName, int
-      smallIcon, String title, PendingIntent notifyIntent) {
-    return createNotification(channelName, smallIcon, title, notifyIntent, true);
-  }
-
-  public NotificationsHelper createNotification(
-      @NonNull NotificationChannels.NotificationChannelNames channelName, int
-      smallIcon, String title, PendingIntent notifyIntent, boolean isOngoing) {
+     NotificationContent notificationContent, PendingIntent notifyIntent) {
     mBuilder = new NotificationCompat.Builder(mContext,
-        NotificationChannels.channels.get(channelName).id)
-        .setSmallIcon(smallIcon)
-        .setContentTitle(title)
-        .setAutoCancel(!isOngoing)
-        .setOngoing(isOngoing)
-        .setColor(mContext.getResources().getColor(R.color.colorAccent))
-        .setContentIntent(notifyIntent);
+            NotificationChannels.channels.get(notificationContent._channelName).id)
+            .setSmallIcon(notificationContent._smallIcon)
+            .setContentTitle(notificationContent._title)
+            .setAutoCancel(true)
+            .setOngoing(false)
+            .setColor(mContext.getResources().getColor(R.color.colorAccent))
+            .setContentIntent(notifyIntent);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
       setLargeIcon(R.drawable.logo_notification_lollipop);
     } else {
       setLargeIcon(R.mipmap.ic_launcher);
     }
+    return this;
+  }
 
+  public NotificationsHelper createOngoingNotification(
+      NotificationContent notificationContent, PendingIntent notifyIntent) {
+    mBuilder = new NotificationCompat.Builder(mContext,
+            NotificationChannels.channels.get(notificationContent._channelName).id)
+            .setSmallIcon(notificationContent._smallIcon)
+            .setContentTitle(notificationContent._title)
+            .setAutoCancel(false)
+            .setOngoing(true)
+            .setColor(mContext.getResources().getColor(R.color.colorAccent))
+            .setContentIntent(notifyIntent);
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      setLargeIcon(R.drawable.logo_notification_lollipop);
+    } else {
+      setLargeIcon(R.mipmap.ic_launcher);
+    }
     return this;
   }
 
