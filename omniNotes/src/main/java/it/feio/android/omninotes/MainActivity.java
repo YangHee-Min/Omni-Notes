@@ -482,6 +482,77 @@ public class MainActivity extends BaseActivity implements
     }
   }
 
+  private String generateTitle(String titleText, String noteContent) {
+    return titleText
+            + System.getProperty("line.separator")
+            + noteContent;
+  }
+
+
+  private static class NoteIntentGenerator {
+    public static Intent generateIntent(Note note) {
+      Intent shareIntent = new Intent();
+      // Prepare sharing intent with only text
+      if (note.getAttachmentsList().isEmpty()) {
+        shareIntent = NoteIntentGenerator.setNoteWithNoImage();
+
+        // Intent with single image attachment
+      } else if (note.getAttachmentsList().size() == 1) {
+        shareIntent = NoteIntentGenerator.setNoteWithSingleImage(note);
+
+        // Intent with multiple images
+      } else if (note.getAttachmentsList().size() > 1) {
+        shareIntent = NoteIntentGenerator.setNoteWithMultipleImages(note);
+      }
+
+      return shareIntent;
+    }
+    private static Intent setNoteWithNoImage() {
+      Intent shareIntent = new Intent();
+      shareIntent.setAction(Intent.ACTION_SEND);
+      shareIntent.setType("text/plain");
+      return shareIntent;
+    }
+
+    private static Intent setNoteWithSingleImage(Note note) {
+      Intent shareIntent = new Intent();
+      shareIntent.setAction(Intent.ACTION_SEND);
+      Attachment attachment = note.getAttachmentsList().get(0);
+      shareIntent.setType(attachment.getMime_type());
+      shareIntent.putExtra(Intent.EXTRA_STREAM, FileProviderHelper.getShareableUri(attachment));
+      return shareIntent;
+    }
+
+    private static Intent setNoteWithMultipleImages(Note note) {
+      Intent shareIntent = new Intent();
+      shareIntent.setAction(Intent.ACTION_SEND_MULTIPLE);
+      ArrayList<Uri> uris = new ArrayList<>();
+      HashMap<String, Boolean> mimeTypes = generateMimeTypes(uris, note);
+      setIntentType(shareIntent, mimeTypes);
+
+      shareIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+      return shareIntent;
+    }
+
+    private static void setIntentType(Intent shareIntent, HashMap<String, Boolean> mimeTypes) {
+      if (mimeTypes.size() > 1) {
+        shareIntent.setType("*/*");
+      } else {
+        shareIntent.setType((String) mimeTypes.keySet().toArray()[0]);
+      }
+    }
+
+    private static HashMap<String, Boolean> generateMimeTypes(ArrayList<Uri> uris, Note note) {
+      // A check to decide the mime type of attachments to share is done here
+      HashMap<String, Boolean> mimeTypes = new HashMap<>();
+      for (Attachment attachment : note.getAttachmentsList()) {
+        uris.add(FileProviderHelper.getShareableUri(attachment));
+        mimeTypes.put(attachment.getMime_type(), true);
+      }
+      return mimeTypes;
+    }
+  }
+
 
   /**
    * Notes sharing
@@ -490,42 +561,10 @@ public class MainActivity extends BaseActivity implements
 
     String titleText = note.getTitle();
 
-    String contentText = titleText
-        + System.getProperty("line.separator")
-        + note.getContent();
+    String contentText = generateTitle(titleText, note.getContent());
 
-    Intent shareIntent = new Intent();
-    // Prepare sharing intent with only text
-    if (note.getAttachmentsList().isEmpty()) {
-      shareIntent.setAction(Intent.ACTION_SEND);
-      shareIntent.setType("text/plain");
+    Intent shareIntent = NoteIntentGenerator.generateIntent(note);
 
-      // Intent with single image attachment
-    } else if (note.getAttachmentsList().size() == 1) {
-      shareIntent.setAction(Intent.ACTION_SEND);
-      Attachment attachment = note.getAttachmentsList().get(0);
-      shareIntent.setType(attachment.getMime_type());
-      shareIntent.putExtra(Intent.EXTRA_STREAM, FileProviderHelper.getShareableUri(attachment));
-
-      // Intent with multiple images
-    } else if (note.getAttachmentsList().size() > 1) {
-      shareIntent.setAction(Intent.ACTION_SEND_MULTIPLE);
-      ArrayList<Uri> uris = new ArrayList<>();
-      // A check to decide the mime type of attachments to share is done here
-      HashMap<String, Boolean> mimeTypes = new HashMap<>();
-      for (Attachment attachment : note.getAttachmentsList()) {
-        uris.add(FileProviderHelper.getShareableUri(attachment));
-        mimeTypes.put(attachment.getMime_type(), true);
-      }
-      // If many mime types are present a general type is assigned to intent
-      if (mimeTypes.size() > 1) {
-        shareIntent.setType("*/*");
-      } else {
-        shareIntent.setType((String) mimeTypes.keySet().toArray()[0]);
-      }
-
-      shareIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
-    }
     shareIntent.putExtra(Intent.EXTRA_SUBJECT, titleText);
     shareIntent.putExtra(Intent.EXTRA_TEXT, contentText);
 
